@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" width="640" height="240" role="img" aria-label="tacet">
+  <title>tacet</title>
+  <rect width="640" height="240" fill="#0b0d0e"/>
+
+  <!-- The staff. Five lines, because that is what a stave is, and the silence
+       only reads as silence against them. -->
+  <g stroke="#2a2f33" stroke-width="2">
+    <line x1="72" y1="84" x2="568" y2="84"/>
+    <line x1="72" y1="102" x2="568" y2="102"/>
+    <line x1="72" y1="120" x2="568" y2="120"/>
+    <line x1="72" y1="138" x2="568" y2="138"/>
+    <line x1="72" y1="156" x2="568" y2="156"/>
+  </g>
+
+  <!-- A whole rest: the bar that hangs from the second line and means the
+       instrument plays nothing for the entire measure. -->
+  <rect x="272" y="102" width="96" height="18" fill="#f4f4f2"/>
+
+  <!-- One speaking beat, in the amber reserved for it. Everything else is quiet. -->
+  <circle cx="470" cy="120" r="9" fill="#c98a2b"/>
+
+  <text x="72" y="212" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="34" letter-spacing="10" fill="#f4f4f2">tacet</text>
+  <text x="330" y="212" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="16" fill="#6b7280">silent by default</text>
+</svg>

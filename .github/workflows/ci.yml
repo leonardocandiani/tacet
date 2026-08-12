@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: lint
+        run: bun run lint
+
+      - name: test
+        run: bun test
+
+      # The decision logic is the product. If these ever run against a network,
+      # they have stopped being a specification and become an integration test.
+      - name: no network in the core tests
+        run: |
+          if grep -rnE 'fetch\(|https?://' src/core/*.test.ts; then
+            echo "core tests must not touch the network"
+            exit 1
+          fi

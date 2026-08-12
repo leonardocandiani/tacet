@@ -1,0 +1,44 @@
+{
+  "dependencies": {},
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.14",
+    "eslint": "^10.8.1",
+    "typescript": "^6",
+    "typescript-eslint": "^8.67.0"
+  },
+  "type": "module",
+  "name": "tacet",
+  "version": "0.1.0",
+  "description": "Silent by default. A self-hosted agent that sits in your meetings, listens to everything, speaks only when called, and files the minutes.",
+  "license": "MIT",
+  "author": "Leonardo Candiani",
+  "homepage": "https://github.com/leonardocandiani/tacet",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leonardocandiani/tacet.git"
+  },
+  "keywords": [
+    "meeting",
+    "transcription",
+    "meeting-bot",
+    "notetaker",
+    "minutes",
+    "google-meet",
+    "self-hosted",
+    "voice-agent",
+    "ai-agent"
+  ],
+  "bin": {
+    "tacet": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "check": "bun run typecheck && bun run lint && bun test"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
+  }
+}

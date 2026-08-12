@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+
+# Local config and everything a run produces
+tacet.json
+meetings/
+.env
+.env.*
+!.env.example
