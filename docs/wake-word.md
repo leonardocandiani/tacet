@@ -49,7 +49,7 @@ Names that work well in practice look like product names: *Nova*, *Kestrel*,
 ## Testing it before a real meeting
 
 ```bash
-tacet check
+tacet check          # after `bun link`; otherwise `bun run src/cli.ts check`
 ```
 
 Prints the compiled pattern and rejects the collisions it can detect. Read the

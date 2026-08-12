@@ -21,6 +21,40 @@ Google Meet, Teams, Zoom and Jitsi; the adapter here targets Meet.
 }
 ```
 
+### Standing one up
+
+Nothing here talks to a hosted service, so this is the step that has to work
+before anything else does.
+
+```bash
+git clone https://github.com/Vexa-ai/vexa
+cd vexa
+make all              # CPU build; `make all TARGET=gpu` if you have one
+```
+
+The compose stack comes up on `localhost:18056` for the API and `18057` for the
+admin port. Mint yourself a key through the admin API, then export it under
+whatever name your config gives `keyEnv`:
+
+```bash
+curl -s -X POST http://localhost:18057/admin/users \
+  -H 'X-Admin-API-Key: token' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","name":"you"}'
+
+curl -s -X POST http://localhost:18057/admin/users/1/tokens -H 'X-Admin-API-Key: token'
+
+export VEXA_API_KEY=...      # the token from that last call
+```
+
+`tacet check --live` calls the API with that key and tells you whether it was
+accepted, which is worth doing at your desk rather than in front of the meeting.
+
+Two practical notes from running it: the first CPU build pulls a Whisper model
+and takes a while, and the whole stack wants a few gigabytes of RAM. On a laptop
+that sleeps, expect the containers to come back confused — restart the stack
+rather than debugging it.
+
 ### Two things worth knowing before you deploy it
 
 **Fetch transcripts by meeting id, never by room code.** The route keyed on room
@@ -65,7 +99,8 @@ requirements are in [adapters.md](adapters.md). Candidates worth building:
   shape to Vexa.
 - **A file transport** — read a recording and replay it through the same loop.
   This is the cheapest way to test decision logic against a real meeting, and it
-  needs no meeting platform at all.
+  needs no meeting platform at all. Nothing like this ships today; the interface
+  is what makes it a small job.
 
 ## The one thing no transport can fix
 

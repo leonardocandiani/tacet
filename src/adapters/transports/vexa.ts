@@ -100,6 +100,12 @@ export function vexaTransport(opts: VexaOptions): Transport {
       return { id: String(body.id), room, platform: 'google_meet' };
     },
 
+    async reachable(): Promise<void> {
+      const r = await call('/bots/status');
+      if (r.status === 401 || r.status === 403) throw new Error(`rejected the API key (${r.status})`);
+      if (!r.ok && r.status !== 404) throw new Error(`responded ${r.status}`);
+    },
+
     async leave(handle: MeetingHandle): Promise<void> {
       await call(`/bots/${handle.platform}/${handle.room}`, { method: 'DELETE' }).catch(() => {});
     },

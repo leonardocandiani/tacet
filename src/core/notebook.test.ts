@@ -88,3 +88,62 @@ describe('live notebook', () => {
     expect(after.decisions).toHaveLength(1);
   });
 });
+
+describe('notes that look alike', () => {
+  test('a correction is kept alongside what it corrects, in the order said', () => {
+    let book = newNotebook();
+    book = merge(book, { decisions: [{ what: 'we will ship the new pricing page on Monday', at: 10 }] }, 10);
+    book = merge(book, { decisions: [{ what: 'we will ship the new pricing page on Friday', at: 400 }] }, 400);
+
+    // Choosing which one wins would mean guessing, and a wrong guess deletes a
+    // real decision. Both are in the minutes, timestamped, last one last.
+    expect(book.decisions).toHaveLength(2);
+    expect(book.decisions[1]?.what).toContain('Friday');
+  });
+
+  test('two decisions sharing an opening are both kept', () => {
+    let book = newNotebook();
+    book = merge(book, { decisions: [{ what: 'we will hire two engineers in Q3 for the platform team', at: 10 }] }, 10);
+    book = merge(book, { decisions: [{ what: 'we will hire two engineers in Q3 for the data team', at: 900 }] }, 900);
+
+    expect(book.decisions).toHaveLength(2);
+  });
+
+  test('a sentence still being transcribed collapses into its finished form', () => {
+    let book = newNotebook();
+    book = merge(book, { decisions: [{ what: 'we will ship the new', at: 10 }] }, 10);
+    book = merge(book, { decisions: [{ what: 'we will ship the new pricing page on Monday', at: 12 }] }, 12);
+
+    expect(book.decisions).toHaveLength(1);
+    expect(book.decisions[0]?.what).toBe('we will ship the new pricing page on Monday');
+  });
+
+  test('a later pass never rewrites the notebook it grew from', () => {
+    const first = merge(newNotebook(), { actions: [{ what: 'send the contract', at: 1 }] }, 1);
+    const before = JSON.parse(JSON.stringify(first));
+    merge(first, { actions: [{ what: 'send the contract', owner: 'Ana', at: 2 }] }, 2);
+
+    expect(first.actions).toEqual(before.actions);
+  });
+
+  test('the identical sentence arriving twice is still one decision', () => {
+    let book = newNotebook();
+    book = merge(book, { decisions: [{ what: 'budget stays at fifteen thousand', at: 10 }] }, 10);
+    book = merge(book, { decisions: [{ what: 'Budget stays at fifteen thousand.', at: 90 }] }, 90);
+
+    expect(book.decisions).toHaveLength(1);
+    expect(book.decisions[0]?.at).toBe(10);
+  });
+});
+
+describe('the spoken status when everything is answered', () => {
+  test('says so instead of speaking a bare full stop', () => {
+    let book = newNotebook();
+    book = merge(book, { questions: [{ what: 'who signs the contract', at: 5 }] }, 5);
+    book = merge(book, { answered: [{ question: 'who signs the contract', answer: 'Ana' }] }, 6);
+
+    const said = speakableStatus(book);
+    expect(said).not.toBe('.');
+    expect(said).toContain('Nothing open');
+  });
+});

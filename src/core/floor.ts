@@ -115,7 +115,11 @@ export function requestFloor(u: Utterance, s: FloorState, c: FloorConfig): Floor
 /** Voice commands that change the agent's posture rather than ask it anything.
  *  Checked before the floor, because "stop" must work while it is mid-sentence. */
 export function applyVoiceCommand(u: Utterance, s: FloorState, c: FloorConfig): FloorState | null {
-  if (!c.wake.test(u.text) && !s.openUntil) return null;
+  // The window has to be open *now*, not merely have been opened once. Testing
+  // openUntil for truthiness left it permanently satisfied after the first turn,
+  // so an hour later "thanks" or "I barely got any sleep" muted the agent for the
+  // rest of the meeting, silently, with nobody able to explain why.
+  if (!c.wake.test(u.text) && u.at >= s.openUntil) return null;
 
   if (c.sleep.test(u.text)) return { ...s, asleep: true, openUntil: 0, thinkingSince: 0 };
   if (c.hush.test(u.text)) return { ...s, openUntil: 0, thinkingSince: 0 };

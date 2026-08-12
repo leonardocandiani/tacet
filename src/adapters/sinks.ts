@@ -5,11 +5,20 @@
 // two rules. It never throws into the meeting loop, and it treats a partial
 // record — one delivered mid-meeting — as something to update, not to duplicate.
 
+import { redact } from '../redact';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DeliveryResult, MeetingRecord, Sink } from './contracts';
 
 /** Filesystem-safe name from a title: no accents, no separators, bounded. */
+/** Anything that reaches a path segment goes through here. A room code arrives
+ *  from the command line and a title from a language model; neither is trusted to
+ *  stay inside the meetings directory on its own. */
+export function safeSegment(raw: string, fallback: string): string {
+  const cleaned = slug(raw);
+  return cleaned || fallback;
+}
+
 export function slug(title: string): string {
   return title
     .normalize('NFD')
@@ -91,7 +100,7 @@ export function fileSink(opts: FileSinkOptions): Sink {
     name: 'files',
     async deliver(record: MeetingRecord): Promise<DeliveryResult> {
       const day = record.startedAt.slice(0, 10);
-      const name = slug(record.title) || slug(record.handle.room) || 'meeting';
+      const name = safeSegment(record.title, safeSegment(record.handle.room, 'meeting'));
       const dir = join(opts.dir, `${day}_${name}`);
       try {
         await mkdir(dir, { recursive: true });
@@ -101,6 +110,7 @@ export function fileSink(opts: FileSinkOptions): Sink {
         }
         for (const [ext, content] of Object.entries(record.artifacts || {})) {
           if (ext === 'pdf') continue; // written by the renderer, not copied through JSON
+          if (!/^[a-z0-9]{1,8}$/i.test(ext)) continue;
           await Bun.write(join(dir, `minutes.${ext}`), content);
         }
         return { ok: true, location: dir };
@@ -116,7 +126,9 @@ export interface WebhookSinkOptions {
   /** Sent as a bearer token when present. */
   token?: string;
   headers?: Record<string, string>;
-  /** Skip partial records — most integrations only want the finished thing. */
+  /** Skip partial records. Defaults to **true**: most integrations want the
+   *  finished meeting, and a checkpoint every few minutes turns a Slack channel
+   *  into a stream of drafts. Set false to receive them. */
   finalOnly?: boolean;
   timeoutMs?: number;
 }
@@ -174,7 +186,7 @@ export function commandSink(opts: CommandSinkOptions): Sink {
         const code = await proc.exited;
         if (code !== 0) {
           const err = await new Response(proc.stderr).text();
-          return { ok: false, error: `exited ${code}: ${err.slice(0, 200)}` };
+          return { ok: false, error: `exited ${code}: ${redact(err).slice(0, 200)}` };
         }
         return { ok: true, location: opts.argv.join(' ') };
       } catch (err) {

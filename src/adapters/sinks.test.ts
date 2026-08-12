@@ -1,6 +1,23 @@
 import { describe, expect, test } from 'bun:test';
-import { memorySink, renderMarkdown, slug, webhookSink } from './sinks';
+import { commandSink, fileSink, memorySink, renderMarkdown, slug, webhookSink } from './sinks';
 import type { MeetingRecord } from './contracts';
+
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+function recordWith(over: { title: string; room?: string }): MeetingRecord {
+  return {
+    handle: { id: 'm1', room: over.room ?? 'abc-defg-hij', platform: 'test' },
+    title: over.title,
+    startedAt: '2026-08-12T10:00:00.000Z',
+    endedAt: '2026-08-12T11:00:00.000Z',
+    participants: ['Ana'],
+    utterances: [{ offset: 1, text: 'hello', speaker: 'Ana' }],
+    partial: false,
+  };
+}
+
 
 const RECORD: MeetingRecord = {
   handle: { id: '7', room: 'abc-defg-hij', platform: 'google_meet' },
@@ -90,5 +107,63 @@ describe('sinks', () => {
     const r = await sink.deliver(RECORD);
     expect(r.ok).toBe(false);
     expect(r.error).toBeTruthy();
+  });
+});
+
+describe('fileSink', () => {
+  test('writes the transcript where it says it did, and nowhere else', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tacet-sink-'));
+    const sink = fileSink({ dir });
+    const result = await sink.deliver(recordWith({ title: 'Q3 rollout' }));
+
+    expect(result.ok).toBe(true);
+    const written = await readdir(result.location as string);
+    expect(written).toContain('transcript.md');
+    expect(written).toContain('meeting.json');
+    expect(result.location as string).toContain('q3-rollout');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('a title made only of punctuation cannot climb out of the meetings folder', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tacet-sink-'));
+    const sink = fileSink({ dir });
+    const result = await sink.deliver(recordWith({ title: '../../etc', room: '../../../tmp' }));
+
+    expect(result.ok).toBe(true);
+    expect((result.location as string).startsWith(dir)).toBe(true);
+    expect(result.location as string).not.toContain('..');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test('an artifact key that is not a plain extension is skipped', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tacet-sink-'));
+    const sink = fileSink({ dir });
+    const record = recordWith({ title: 'Weekly' });
+    const result = await sink.deliver({ ...record, artifacts: { '../escaped': 'nope', txt: 'fine' } });
+
+    const written = await readdir(result.location as string);
+    expect(written).toContain('minutes.txt');
+    expect(await readdir(dir)).toHaveLength(1);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('commandSink', () => {
+  test('hands the record to the process on stdin', async () => {
+    const out = join(await mkdtemp(join(tmpdir(), 'tacet-cmd-')), 'seen.json');
+    const sink = commandSink({ argv: ['sh', '-c', `cat > ${out}`] });
+
+    const result = await sink.deliver(recordWith({ title: 'Handover' }));
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(await Bun.file(out).text()).title).toBe('Handover');
+  });
+
+  test('a failing command is reported, not thrown, and its output is scrubbed', async () => {
+    const sink = commandSink({ argv: ['sh', '-c', 'echo "using sk-live-abcdefghijklmnop" >&2; exit 3'] });
+    const result = await sink.deliver(recordWith({ title: 'Handover' }));
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('exited 3');
+    expect(result.error).not.toContain('sk-live-abcdefghijklmnop');
   });
 });

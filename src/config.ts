@@ -11,7 +11,9 @@ import { DEFAULT_FLOOR } from './core/floor';
 import { DEFAULT_SESSION, type SessionConfig } from './core/session';
 
 export interface ProviderRef {
-  /** Adapter name: openai, anthropic, gemini, elevenlabs, groq, whisper, command. */
+  /** Adapter name. Brains: openai, anthropic, gemini, command. Voices:
+   *  elevenlabs, openai, http, none. Anything else is refused when the config is
+   *  wired, with the list of what was expected. */
   use: string;
   model?: string;
   voice?: string;
@@ -30,6 +32,7 @@ export interface SinkRef {
   url?: string;
   tokenEnv?: string;
   argv?: string[];
+  /** Deliver checkpoints as well as the finished meeting. Off by default. */
   finalOnly?: boolean;
 }
 
@@ -92,7 +95,15 @@ export function wakePattern(name: string, aliases: string[] = []): RegExp {
     .filter(Boolean)
     .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   if (!forms.length) throw new ConfigError('the agent needs a name to be woken by');
-  return new RegExp(`\\b(${forms.join('|')})\\b`, 'i');
+
+  // Unicode-aware boundaries rather than \b, which is defined against ASCII word
+  // characters: a name like "Ná" or one wrapped in punctuation compiled into a
+  // pattern that matched nothing, and the agent simply never woke up.
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${forms.join('|')})(?![\\p{L}\\p{N}])`, 'iu');
+  if (!pattern.test(name)) {
+    throw new ConfigError(`the name "${name}" cannot be matched as a wake word`, 'use a name made of letters, and put spellings in wakeAliases');
+  }
+  return pattern;
 }
 
 const DEFAULT_PERSONA = [
@@ -138,8 +149,11 @@ export function readKey(ref: ProviderRef, required = true): string | undefined {
     throw new ConfigError(`provider "${ref.use}" has no keyEnv`, `add keyEnv: "SOME_API_KEY" to the ${ref.use} entry`);
   }
   const value = process.env[ref.keyEnv];
-  if (!value && required) {
-    throw new ConfigError(`environment variable ${ref.keyEnv} is not set`, `export ${ref.keyEnv}=... before starting`);
+  // Naming a variable is a statement of intent. Empty means the export was
+  // forgotten, and letting that through produced an agent that started cleanly
+  // and then failed on its first question, in front of everyone.
+  if (!value) {
+    throw new ConfigError(`environment variable ${ref.keyEnv} is not set`, `export ${ref.keyEnv}=... before starting, or drop keyEnv from the ${ref.use} entry`);
   }
   return value;
 }
@@ -147,6 +161,9 @@ export function readKey(ref: ProviderRef, required = true): string | undefined {
 function assertProviders(file: AgentFile): void {
   if (!file.name?.trim()) throw new ConfigError('config needs a "name"');
   if (!file.transport?.use) throw new ConfigError('config needs a "transport.use"');
+  if (typeof file.floor?.maxTurns === 'number' && file.floor.maxTurns < 0) {
+    throw new ConfigError('floor.maxTurns cannot be negative', 'use 0 for an agent that never speaks');
+  }
   if (!file.fast?.length) {
     throw new ConfigError('config needs at least one "fast" provider', 'fast: [{ use: "gemini", keyEnv: "GEMINI_API_KEY" }]');
   }
@@ -154,8 +171,42 @@ function assertProviders(file: AgentFile): void {
 
 /** Parses and validates. Accepts JSON, and JSONC with // comments, because a
  *  config people are meant to read should be a config people can annotate. */
+/** Removes `//` comments without touching one inside a string. The naive
+ *  line-anchored regex only caught comments that began a line, so the trailing
+ *  form used throughout the documentation — `"fast": [...],  // the cheap one` —
+ *  failed to parse on somebody's first evening with the project. */
+export function stripComments(text: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i] as string;
+    if (inString) {
+      out += ch;
+      [inString, escaped] = insideString(ch, escaped);
+      continue;
+    }
+    if (ch === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+      out += '\n';
+      continue;
+    }
+    if (ch === '"') inString = true;
+    out += ch;
+  }
+  return out;
+}
+
+/** Returns [stillInsideTheString, nextCharIsEscaped]. */
+function insideString(ch: string, escaped: boolean): [boolean, boolean] {
+  if (escaped) return [true, false];
+  if (ch === '\\') return [true, true];
+  return [ch !== '"', false];
+}
+
 export function parseConfig(text: string): AgentFile {
-  const stripped = text.replace(/^\s*\/\/.*$/gm, '');
+  const stripped = stripComments(text);
   let parsed: unknown;
   try {
     parsed = JSON.parse(stripped);

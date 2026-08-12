@@ -4,6 +4,8 @@
 // audio goes into a virtual microphone, and a WAV header arriving mid-stream is
 // audible in the room as a click at the start of every sentence.
 
+import { redact } from '../redact';
+import { firstSuccess } from './chain';
 import type { SpokenAudio, Synthesizer } from './contracts';
 
 const SAMPLE_RATE = 24_000;
@@ -32,7 +34,7 @@ export function elevenLabsVoice(opts: VoiceOptions = {}): Synthesizer {
         body: JSON.stringify({ text, model_id: model }),
         signal: o.signal ?? AbortSignal.timeout(opts.timeoutMs ?? 20_000),
       });
-      if (!r.ok) throw new Error(`elevenlabs http ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw new Error(`elevenlabs http ${r.status}: ${redact(await r.text()).slice(0, 200)}`);
       const pcm = await r.arrayBuffer();
       if (!pcm.byteLength) throw new Error('elevenlabs returned no audio');
       return { pcm, sampleRate: SAMPLE_RATE };
@@ -54,7 +56,7 @@ export function openaiVoice(opts: VoiceOptions = {}): Synthesizer {
         body: JSON.stringify({ model, voice: o.voice || voice, input: text, response_format: 'pcm' }),
         signal: o.signal ?? AbortSignal.timeout(opts.timeoutMs ?? 20_000),
       });
-      if (!r.ok) throw new Error(`openai tts http ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw new Error(`openai tts http ${r.status}: ${redact(await r.text()).slice(0, 200)}`);
       const pcm = await r.arrayBuffer();
       if (!pcm.byteLength) throw new Error('openai returned no audio');
       // OpenAI's pcm is 24 kHz mono s16le, same shape as the rest.
@@ -67,6 +69,10 @@ export function openaiVoice(opts: VoiceOptions = {}): Synthesizer {
  *  local Piper or Coqui, which is what you want when nothing may leave the
  *  building. */
 export function httpVoice(url: string, opts: VoiceOptions & { token?: string } = {}): Synthesizer {
+  // `token` is the older spelling and wire.ts passes `apiKey`. Accepting both is
+  // one line; accepting neither meant every custom endpoint saw an unauthenticated
+  // request and the operator had no way to tell from the config that it would.
+  const key = opts.apiKey ?? opts.token;
   return {
     name: `http:${new URL(url).host}`,
     async synthesize(text: string, o = {}): Promise<SpokenAudio> {
@@ -74,7 +80,7 @@ export function httpVoice(url: string, opts: VoiceOptions & { token?: string } =
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
+          ...(key ? { Authorization: `Bearer ${key}` } : {}),
         },
         body: JSON.stringify({ text, voice: o.voice || opts.voice }),
         signal: o.signal ?? AbortSignal.timeout(opts.timeoutMs ?? 20_000),
@@ -93,6 +99,26 @@ export function silentVoice(): Synthesizer {
     name: 'silent',
     async synthesize(): Promise<SpokenAudio> {
       return { pcm: new ArrayBuffer(0), sampleRate: SAMPLE_RATE };
+    },
+  };
+}
+
+/** Tries each voice in turn, exactly like the brain chain. Configuration takes a
+ *  list, the documentation calls it a fallback, and until this existed only the
+ *  first entry was ever built — so an ElevenLabs outage silenced an agent that
+ *  had OpenAI configured right underneath it. */
+export function voiceChain(voices: Synthesizer[], onFail?: (name: string, error: string) => void): Synthesizer {
+  if (!voices.length) throw new Error('a voice chain needs at least one voice');
+  if (voices.length === 1) return voices[0] as Synthesizer;
+
+  return {
+    name: `chain(${voices.map((v) => v.name).join(' → ')})`,
+    async synthesize(text: string, opts = {}): Promise<SpokenAudio> {
+      const { value } = await firstSuccess(
+        voices.map((v) => ({ name: v.name, run: () => v.synthesize(text, opts) })),
+        { onFail, accept: (a: SpokenAudio) => a.pcm.byteLength > 0 },
+      );
+      return value;
     },
   };
 }

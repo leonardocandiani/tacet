@@ -44,7 +44,10 @@ export const ENGLISH_COMMANDS: Pattern[] = [
   { kind: 'capture-action', match: /\b(?:action item|add a task)\b:?\s*(.*)$/i },
   { kind: 'capture-note', match: /\b(?:note|write|take)\s+(?:this|that)\s+down\b:?\s*(.*)$/i },
   { kind: 'capture-note', match: /\b(?:make a note|note that)\b:?\s*(.*)$/i },
-  { kind: 'status', match: /\b(?:where are we|what have we (?:decided|got)|catch me up|status|recap)\b/i },
+  // Anchored to the end of the utterance on purpose: an unanchored \bstatus\b
+  // turned "what is the status of the API work?" into a notebook recap, which
+  // reads as the agent ignoring the question it was asked.
+  { kind: 'status', match: /\b(?:where are we|where do we stand|what have we (?:decided|got)|catch me up|recap|(?:the\s+)?status)\s*[?.!]*\s*$/i },
   { kind: 'off-the-record', match: /\b(?:off the record|stop recording|pause recording)\b/i },
   { kind: 'on-the-record', match: /\b(?:on the record|resume recording|start recording)\b/i },
 ];

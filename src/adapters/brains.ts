@@ -5,6 +5,7 @@
 // context — Claude Code, Codex, an in-house script — without this project
 // needing to know anything about them.
 
+import { redact } from '../redact';
 import { firstSuccess, withDeadline, type Attempt } from './chain';
 import type { Brain, CompletionRequest } from './contracts';
 
@@ -53,7 +54,7 @@ export function openaiBrain(opts: HttpBrainOptions = {}): Brain {
         body: JSON.stringify(chatPayload(model, req)),
         signal: req.signal ?? AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
-      if (!r.ok) throw new Error(`openai http ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw new Error(`openai http ${r.status}: ${redact(await r.text()).slice(0, 200)}`);
       const d = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
       return String(d.choices?.[0]?.message?.content ?? '').trim();
     },
@@ -83,7 +84,7 @@ export function anthropicBrain(opts: HttpBrainOptions = {}): Brain {
         }),
         signal: req.signal ?? AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
-      if (!r.ok) throw new Error(`anthropic http ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw new Error(`anthropic http ${r.status}: ${redact(await r.text()).slice(0, 200)}`);
       const d = (await r.json()) as { content?: Array<{ text?: string }> };
       return String(d.content?.[0]?.text ?? '').trim();
     },
@@ -114,9 +115,11 @@ export function geminiBrain(opts: HttpBrainOptions & { thinkingBudget?: number }
     name: `gemini:${model}`,
     async complete(req: CompletionRequest): Promise<string> {
       const key = requireKey(opts.apiKey, 'gemini');
-      const r = await fetch(`${base}/models/${model}:generateContent?key=${key}`, {
+      // Header rather than query string: URLs are logged by proxies, land in
+      // error messages, and end up in shell history.
+      const r = await fetch(`${base}/models/${model}:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: req.system }] },
           contents: [{ parts: [{ text: req.user }] }],
@@ -129,7 +132,7 @@ export function geminiBrain(opts: HttpBrainOptions & { thinkingBudget?: number }
         }),
         signal: req.signal ?? AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
-      if (!r.ok) throw new Error(`gemini http ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw new Error(`gemini http ${r.status}: ${redact(await r.text()).slice(0, 200)}`);
       return readGeminiText(await r.json());
     },
   };
@@ -172,7 +175,7 @@ export function commandBrain(opts: CommandBrainOptions): Brain {
         const [out, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
         if (code !== 0) {
           const err = await new Response(proc.stderr).text();
-          throw new Error(`${opts.argv[0]} exited ${code}: ${err.slice(0, 200)}`);
+          throw new Error(`${opts.argv[0]} exited ${code}: ${redact(err).slice(0, 200)}`);
         }
         return out.trim();
       })();

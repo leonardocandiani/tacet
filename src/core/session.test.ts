@@ -38,8 +38,17 @@ class FakeTransport implements Transport {
 
   say(offset: number, text: string, speaker = 'Alex'): void {
     const found = this.lines.find((l) => l.offset === offset);
+    if (found) {
+      found.text = text;
+      found.speaker = speaker;
+    } else this.lines.push({ offset, text, speaker });
+  }
+
+  /** A segment the recogniser has not attributed yet. */
+  sayAnonymous(offset: number, text: string): void {
+    const found = this.lines.find((l) => l.offset === offset);
     if (found) found.text = text;
-    else this.lines.push({ offset, text, speaker });
+    else this.lines.push({ offset, text });
   }
 }
 
@@ -163,8 +172,13 @@ describe('session loop', () => {
     const s = new Session(HANDLE, { transport, fast, voice: new FakeVoice(), sinks: [], clock: clock.now }, makeConfig());
 
     transport.say(1, 'nova is a nice name for a product');
+    await s.tick();
     clock.advance(2_000);
     await s.tick();
+
+    // Without this the utterance never settles, the brain is never called, and
+    // the test passes with the gate it exists to protect deleted.
+    expect(fast.asked).toHaveLength(1);
     expect(transport.spoken).toHaveLength(0);
   });
 
@@ -185,7 +199,9 @@ describe('session loop', () => {
     await s.tick();
 
     expect(transport.spoken).toHaveLength(2);
+    expect(transport.spoken[0]).toBe(DEFAULT_SESSION.acknowledgements[0]);
     expect(transport.spoken[1]).toBe('Fourteen leads closed today.');
+    expect(deep.asked).toHaveLength(1);
   });
 
   test('without a deep brain it says so instead of inventing', async () => {
@@ -299,6 +315,7 @@ describe('session loop', () => {
     const s = new Session(HANDLE, { transport, fast: angry, voice: new FakeVoice(), sinks: [], clock: clock.now }, makeConfig());
 
     transport.say(1, 'nova, hello');
+    await s.tick();
     clock.advance(2_000);
     expect(await s.tick()).toBe(true);
     expect(transport.spoken).toHaveLength(0);
@@ -466,5 +483,263 @@ describe('salvaging model JSON', () => {
     expect(parseDelta('no json here')).toBeNull();
     expect(parseDelta('')).toBeNull();
     expect(parseDelta('{ broken')).toBeNull();
+  });
+});
+
+describe('what "off the record" actually covers', () => {
+  test('the sentence said while the pause is still settling is dropped', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now }, makeConfig());
+
+    transport.say(10, 'nova, off the record');
+    await s.tick();
+    clock.advance(600);
+    transport.say(12, 'the acquisition price is forty million');
+    await s.tick();
+    clock.advance(700);
+    await s.tick();
+    clock.advance(10_000);
+    await s.tick();
+
+    const kept = s.snapshot().utterances.map((u) => u.text);
+    expect(kept.some((t) => t.includes('forty million'))).toBe(false);
+  });
+
+  test('a question waiting on the cooldown is abandoned, not answered afterwards', async () => {
+    const transport = new FakeTransport();
+    const fast = new ScriptedBrain(['first answer', 'held answer']);
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast, voice: new FakeVoice(), sinks: [], clock: clock.now }, makeConfig());
+
+    transport.say(1, 'nova, first question');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    transport.say(2, 'nova, second question');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    transport.say(3, 'nova, off the record');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    clock.advance(20_000);
+    await s.tick();
+
+    expect(transport.spoken).not.toContain('held answer');
+  });
+});
+
+describe('attribution that arrives late', () => {
+  test('a speaker resolved after the words reaches the stored transcript', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast: new ScriptedBrain([]), sinks: [], clock: clock.now }, makeConfig());
+
+    transport.sayAnonymous(3, 'the migration finishes on tuesday');
+    await s.tick();
+    clock.advance(1_000);
+    transport.say(3, 'the migration finishes on tuesday', 'Ana');
+    clock.advance(6_000);
+    await s.tick();
+
+    expect(s.snapshot().utterances[0]?.speaker).toBe('Ana');
+  });
+});
+
+describe('the turn budget covers everything the agent says', () => {
+  test('a spoken command cannot talk past the ceiling', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig({ floor: { ...DEFAULT_FLOOR, wake: /\bnova\b/i, maxTurns: 2 } }),
+    );
+
+    for (let i = 1; i <= 6; i += 1) {
+      transport.say(i, `nova, make a note: item ${i}`);
+      await s.tick();
+      clock.advance(2_000);
+      await s.tick();
+      clock.advance(20_000);
+    }
+
+    // Every note is still recorded — the budget governs speech, not the notebook.
+    expect(transport.spoken).toHaveLength(2);
+    expect(s.snapshot().notebook.notes).toHaveLength(6);
+  });
+
+  test('with a budget of zero it never says anything, in any channel', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), sinks: [], clock: clock.now },
+      makeConfig({ floor: { ...DEFAULT_FLOOR, wake: /\bnova\b/i, maxTurns: 0 } }),
+    );
+
+    for (const [i, line] of [
+      'nova, where are we?',
+      "nova, that's a decision: we ship on the twentieth",
+      'nova, off the record',
+    ].entries()) {
+      transport.say(i + 1, line);
+      await s.tick();
+      clock.advance(2_000);
+      await s.tick();
+    }
+
+    // No voice is configured, so anything it "said" would land in the meeting
+    // chat — which is exactly what the listen-only configuration promises never
+    // happens.
+    expect(transport.spoken).toHaveLength(0);
+    expect(transport.chat).toHaveLength(0);
+  });
+});
+
+describe('barge-in, end to end', () => {
+  test('someone talking over the agent stops the playback', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain(['a long answer nobody wanted']), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig(),
+    );
+
+    transport.say(1, 'nova, tell me about the roadmap');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+    expect(transport.spoken).toHaveLength(1);
+
+    clock.advance(500);
+    transport.say(2, 'actually hold on', 'Bo');
+    await s.tick();
+    clock.advance(DEFAULT_SESSION.settleMs + 1_000);
+    await s.tick();
+
+    expect(transport.stopped).toBe(1);
+    expect(s.snapshot().floor.speakingSince).toBe(0);
+  });
+});
+
+describe('the live note pass', () => {
+  test('it folds what was said into the notebook while the meeting runs', async () => {
+    const transport = new FakeTransport();
+    const fast = new ScriptedBrain(['{"decisions":[{"what":"ship on the twentieth","at":1}]}']);
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast, sinks: [], clock: clock.now }, makeConfig({ notebookMs: 1_000 }));
+
+    transport.say(1, 'so we are agreed, the twentieth', 'Ana');
+    clock.advance(6_000);
+    await s.tick();
+
+    expect(fast.asked[0]).toContain('the twentieth');
+    expect(s.snapshot().notebook.decisions[0]?.what).toBe('ship on the twentieth');
+  });
+
+  test('a delta of the wrong shape costs the note, never the meeting', async () => {
+    const transport = new FakeTransport();
+    const fast = new ScriptedBrain(['{"decisions":{"what":"not an array","at":1}}']);
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast, sinks: [], clock: clock.now }, makeConfig({ notebookMs: 1_000 }));
+
+    transport.say(1, 'something worth noting', 'Ana');
+    clock.advance(6_000);
+
+    expect(await s.tick()).toBe(true);
+    expect(s.snapshot().utterances).toHaveLength(1);
+  });
+});
+
+describe('a question held while the room moves on', () => {
+  test('it is dropped rather than answered late', async () => {
+    const transport = new FakeTransport();
+    const fast = new ScriptedBrain(['first answer', 'stale answer']);
+    const clock = fakeClock();
+    const s = new Session(HANDLE, { transport, fast, voice: new FakeVoice(), sinks: [], clock: clock.now }, makeConfig());
+
+    transport.say(1, 'nova, first question');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    transport.say(2, 'nova, second question');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    clock.advance(DEFAULT_FLOOR.windowMs * 2 + 1_000);
+    await s.tick();
+
+    expect(transport.spoken).not.toContain('stale answer');
+  });
+});
+
+describe('dictating a note with no content', () => {
+  test('it captures the line said just before', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig(),
+    );
+
+    transport.say(1, 'the vendor wants another two weeks', 'Ana');
+    transport.say(2, 'nova, make a note', 'Bo');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    expect(JSON.stringify(s.snapshot().notebook)).toContain('another two weeks');
+  });
+});
+
+describe('the action-item row in the README', () => {
+  test('the sentence documented there really records task, owner and deadline', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig(),
+    );
+
+    transport.say(10, 'nova, action item: Review the leads (Sam, Friday)');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    expect(s.snapshot().notebook.actions[0]).toMatchObject({
+      what: 'Review the leads',
+      owner: 'Sam',
+      due: 'Friday',
+    });
+  });
+
+  test('prose that names the owner mid-sentence keeps the whole line and invents nobody', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig(),
+    );
+
+    transport.say(10, 'nova, action item: Sam reviews the leads by Friday');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    const action = s.snapshot().notebook.actions[0];
+    expect(action?.what).toBe('Sam reviews the leads by Friday');
+    expect(action?.owner).toBeUndefined();
   });
 });

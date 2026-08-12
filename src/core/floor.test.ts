@@ -106,3 +106,24 @@ describe('floor control', () => {
     expect(speechDurationMs('x'.repeat(100_000))).toBeLessThanOrEqual(30_000);
   });
 });
+
+describe('a stale window does not accept bare commands', () => {
+  const c = { ...DEFAULT_FLOOR, wake: /\bnova\b/i };
+
+  test('an hour after the window closed, "sleep" in ordinary speech is ignored', () => {
+    const spoke = turnTaken(newFloorState(), 1_000_000, c);
+    const muchLater = 1_000_000 + c.windowMs + 3_600_000;
+    expect(applyVoiceCommand({ text: 'sorry, I barely got any sleep last night', speaker: 'Bo', at: muchLater }, spoke, c)).toBeNull();
+  });
+
+  test('the same words inside the open window do mute it', () => {
+    const spoke = turnTaken(newFloorState(), 1_000_000, c);
+    const inside = 1_000_000 + 5_000;
+    expect(applyVoiceCommand({ text: 'go to sleep', speaker: 'Bo', at: inside }, spoke, c)?.asleep).toBe(true);
+  });
+
+  test('the wake word works whether or not the window is open', () => {
+    const cold = newFloorState();
+    expect(applyVoiceCommand({ text: 'nova, go to sleep', speaker: 'Bo', at: 5_000_000 }, cold, c)?.asleep).toBe(true);
+  });
+});

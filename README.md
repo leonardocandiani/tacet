@@ -37,7 +37,10 @@ someone joining late can ask where things stand.
   left wondering whether it heard.
 - **Takes notes as it goes.** "That's a decision: we ship on the twentieth" is
   recorded verbatim, instantly, with no model in the loop.
-- **Goes off the record** when asked, and means it.
+- **Goes off the record** when asked: the words are dropped from the transcript,
+  from the notes and from every delivery, including the sentence said while the
+  command was still landing. What it cannot do is silence the transport — see
+  [SECURITY.md](SECURITY.md).
 - **Files the minutes** at the end: Markdown, PDF, and anywhere else you point it.
 
 ## Install
@@ -46,22 +49,34 @@ someone joining late can ask where things stand.
 git clone https://github.com/leonardocandiani/tacet
 cd tacet
 bun install
-bun run src/cli.ts init
+bun link            # puts `tacet` on your PATH
+tacet init
 ```
 
 Edit `tacet.json`, export the keys it names, then:
 
 ```bash
-bun run src/cli.ts check          # verifies config and every provider it names
-bun run src/cli.ts join https://meet.google.com/abc-defg-hij
+tacet check            # config, wake word and credentials — no network calls
+tacet check --live     # additionally makes every provider answer for itself
+tacet join https://meet.google.com/abc-defg-hij
 ```
 
-`check` refuses a wake word that collides with ordinary speech — the single most
-damaging thing you can misconfigure.
+`check` refuses a wake word that collides with ordinary speech, which is the
+single most damaging thing you can misconfigure. `--live` costs a few tokens and
+one word of synthesised audio, and it is the difference between "the file parses"
+and "this will work at ten tomorrow".
 
 You also need a meeting transport. The shipped adapter targets a self-hosted
 [Vexa](https://github.com/Vexa-ai/vexa) deployment, which runs the browser that
-actually joins the call. See [docs/transports.md](docs/transports.md).
+actually joins the call — [docs/transports.md](docs/transports.md) has the
+compose-up-and-get-a-key walkthrough.
+
+PDF minutes need a Chromium-based browser on the machine (Chrome, Chromium, Edge
+or Brave). Without one, everything else still works and the PDF is skipped with a
+line in the log.
+
+Prefer not to install anything? `bun run src/cli.ts <command>` works exactly the
+same, and the documentation writes `tacet` for brevity.
 
 ### Teaching a coding agent to drive it
 
@@ -120,7 +135,7 @@ your business in the meeting. tacet never needs to know what those tools are.
 | "Nova, what did we decide about pricing?" | answers from the conversation |
 | "…and what about the timeline?" | answers too — inside the window, no name needed |
 | "Nova, that's a decision: budget stays at fifteen thousand" | records it verbatim, instantly |
-| "Nova, action item: Sam reviews the leads by Friday" | records the task, owner and deadline |
+| "Nova, action item: Review the leads (Sam, Friday)" | records the task, the owner and the deadline |
 | "Nova, where are we?" | counts what is settled and what is still open |
 | "Nova, off the record" | stops writing anything down until told otherwise |
 | "Nova, quiet" | closes the window; still listening |
@@ -151,15 +166,19 @@ transport  ──► utterances ──► settle ──► floor ──► brain
                                  └── notebook ──► minutes ──► sinks
 ```
 
-Everything crossing a boundary goes through an adapter, and each seam ships with
-at least two implementations:
+Everything crossing a boundary goes through an adapter, and every seam but one
+ships with at least two implementations:
 
 | Seam | Ships with |
 |---|---|
-| Transport | Vexa |
+| Transport | Vexa — the only one today, see [docs/transports.md](docs/transports.md) |
 | Brain | OpenAI (and any compatible endpoint), Anthropic, Gemini, **any local command** |
 | Voice | ElevenLabs, OpenAI, any HTTP endpoint, silent |
 | Sink | files, webhook, command, memory |
+
+One transport is not a fallback, and that is the seam worth writing next.
+Everywhere else the config takes a list and tries each in order, so a provider
+outage costs a retry rather than the meeting.
 
 Adding one is a function and a `case`. See [docs/adapters.md](docs/adapters.md).
 
@@ -177,6 +196,14 @@ considered and rejected, with reasons in [docs/decisions.md](docs/decisions.md).
 - **No voice cloning.** Not of participants, not of anyone.
 - **No talk-time leaderboards** by default.
 
+## Security
+
+The agent is in the room with everything anyone says, and the `command` brain can
+put that in front of a process holding your tools. [SECURITY.md](SECURITY.md)
+describes what leaves the machine, how third-party speech is fenced before it
+reaches a model, and how to run that brain without handing the meeting your
+credentials.
+
 ## Documentation
 
 - [Wake words](docs/wake-word.md) — why the name matters more than it sounds
@@ -184,6 +211,7 @@ considered and rejected, with reasons in [docs/decisions.md](docs/decisions.md).
 - [Adapters](docs/adapters.md) — writing your own
 - [Transports](docs/transports.md) — getting a bot into the room
 - [Decisions](docs/decisions.md) — what was rejected and why
+- [Security](SECURITY.md) — threat model, and the limits of "off the record"
 
 ## Development
 

@@ -88,3 +88,52 @@ describe('session config', () => {
     expect(cfg.floor.wake.test('novah are you there')).toBe(true);
   });
 });
+
+describe('the compiled wake pattern', () => {
+  test('matches the name it was built from, accents and all', () => {
+    for (const name of ['Nova', 'Ná', 'Zophie', 'Kestrel']) {
+      expect(wakePattern(name).test(`hey ${name}, are you there?`)).toBe(true);
+    }
+  });
+
+  test('does not fire inside a longer word', () => {
+    expect(wakePattern('Nova').test('the supernova was bright')).toBe(false);
+    expect(wakePattern('Nova').test('novabank called')).toBe(false);
+  });
+
+  test('a name with punctuation in it still matches itself', () => {
+    // The escaping used to be able to produce a pattern that could not match the
+    // very name it was built from, and the failure was silent: the agent simply
+    // never woke up. Building one now proves it matches before returning.
+    expect(wakePattern('N.O.V.A').test('so N.O.V.A, where are we?')).toBe(true);
+    expect(wakePattern('C-3PO').test('C-3PO, take a note')).toBe(true);
+  });
+
+  test('an empty name is refused rather than compiled into a pattern', () => {
+    expect(() => wakePattern('   ')).toThrow();
+  });
+
+  test('aliases are alternatives, not replacements', () => {
+    const p = wakePattern('Nova', ['novah', 'nowa']);
+    expect(p.test('novah, what did we decide')).toBe(true);
+    expect(p.test('nova, what did we decide')).toBe(true);
+  });
+});
+
+describe('reading a config file', () => {
+  test('a comment at the end of a line does not break the parse', () => {
+    const file = parseConfig(`{
+  "name": "Nova",                        // also the wake word
+  "transport": { "use": "vexa", "baseUrl": "http://localhost:18056" },  // not a comment: the //
+  "fast": [{ "use": "gemini" }]
+}`);
+    expect(file.name).toBe('Nova');
+    expect(file.transport.baseUrl).toBe('http://localhost:18056');
+  });
+
+  test('a negative turn budget is refused with a usable hint', () => {
+    expect(() =>
+      parseConfig('{"name":"Nova","transport":{"use":"vexa"},"fast":[{"use":"gemini"}],"floor":{"maxTurns":-1}}'),
+    ).toThrow(/maxTurns/);
+  });
+});

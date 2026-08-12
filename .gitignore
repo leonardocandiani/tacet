@@ -2,9 +2,12 @@ node_modules/
 dist/
 *.log
 
-# Local config and everything a run produces
+# This checkout's own config and everything a run produces. The file holds no
+# secrets — keys are referenced by variable name — so it belongs in YOUR
+# repository; it just has no business in this one.
 tacet.json
 meetings/
 .env
 .env.*
 !.env.example
+_temp/

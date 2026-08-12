@@ -9,7 +9,7 @@
   },
   "type": "module",
   "name": "tacet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Silent by default. A self-hosted agent that sits in your meetings, listens to everything, speaks only when called, and files the minutes.",
   "license": "MIT",
   "author": "Leonardo Candiani",
@@ -33,10 +33,10 @@
     "tacet": "./src/cli.ts"
   },
   "scripts": {
-    "test": "bun test",
+    "test": "bun test src/ examples/",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ examples/",
-    "check": "bun run typecheck && bun run lint && bun test"
+    "check": "bun run typecheck && bun run lint && bun run test"
   },
   "engines": {
     "bun": ">=1.2.0"

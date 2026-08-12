@@ -59,7 +59,10 @@ worse than one with misspelled product names, because the misspelling is visibly
 wrong and the invention is not.
 
 Fix terminology *after* recognition instead, with `corrections` on the
-transcriber adapter:
+transcriber adapter. That seam is used in code, by a transport that hands over
+raw audio; with Vexa the recognition happens inside Vexa, so the window and the
+model are configured there and this is the shape to copy if you write your own
+transport:
 
 ```ts
 groqTranscriber({

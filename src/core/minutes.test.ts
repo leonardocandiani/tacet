@@ -151,3 +151,48 @@ describe('writing minutes', () => {
     expect(asked[0]).toContain('Migration runs on a Saturday');
   });
 });
+
+describe('who owns an action item', () => {
+  test('a parenthetical that is not a person is left in the text', () => {
+    const a = parseAction('Migrate the database (blocked on legal review)');
+    expect(a.owner).toBeUndefined();
+    expect(a.what).toBe('Migrate the database (blocked on legal review)');
+  });
+
+  test('a name in parentheses is the owner', () => {
+    expect(parseAction('Review the leads (Sam)').owner).toBe('Sam');
+    expect(parseAction('Review the leads (Sam Ferreira, Friday)')).toMatchObject({ owner: 'Sam Ferreira', due: 'Friday' });
+  });
+
+  test('an explicit owner label is taken at its word', () => {
+    expect(parseAction('Send the deck (owner: the design team)').owner).toBe('the design team');
+  });
+});
+
+describe('a meeting too long to send whole', () => {
+  test('the tail is kept and the cut is announced', async () => {
+    const seen: string[] = [];
+    const brain: Brain = {
+      name: 'spy',
+      complete: async (req) => {
+        seen.push(req.user);
+        return '# Long meeting\n\n## Summary\n\nx\n\n## Decisions\n\n- x\n\n## Action items\n\n- x\n\n## Open questions\n\n- x';
+      },
+    };
+
+    const utterances: Utterance[] = Array.from({ length: 4_000 }, (_, i) => ({
+      offset: i,
+      text: i === 3_999 ? 'the very last thing anyone said' : `filler line ${i}`,
+      speaker: 'Ana',
+    }));
+
+    await writeMinutes(brain, utterances, newNotebook());
+    const prompt = seen[0] ?? '';
+
+    // A meeting decides things late, so the tail is the part worth keeping — and
+    // the model has to know it is reading a tail rather than the whole thing.
+    expect(prompt).toContain('the very last thing anyone said');
+    expect(prompt).toContain('[earlier portion omitted]');
+    expect(prompt).not.toContain('filler line 0\n');
+  });
+});

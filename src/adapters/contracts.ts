@@ -3,7 +3,9 @@
 //
 // The rule for adding a seam: it exists because at least two real
 // implementations exist today, not because one might exist later. Every
-// interface here is backed by two or more shipped adapters.
+// interface here is backed by two or more shipped adapters, with one exception —
+// Transport, where only the Vexa adapter ships and the seam earns its place by
+// being the piece most people will need to replace.
 
 /** A finalised piece of speech from the meeting. */
 export interface Utterance {
@@ -14,8 +16,9 @@ export interface Utterance {
   text: string;
   /** Display name as the platform reports it. Absent when unattributed. */
   speaker?: string;
-  /** Recognition confidence, 0..1, when the provider exposes it. Used to hold
-   *  back low-confidence text rather than to discard it. */
+  /** Recognition confidence, 0..1, when the provider exposes it. Carried through
+   *  for adapters that want it; nothing in the core reads it, and no shipped
+   *  transport populates it. */
   confidence?: number;
 }
 
@@ -31,9 +34,9 @@ export interface MeetingHandle {
 
 /** Transport: puts the agent in the room and gets its voice out.
  *
- *  Two implementations ship: a self-hosted browser-bot runner, and a local
- *  file-based one used by tests and by "process this recording" runs. Anything
- *  that can produce utterances and optionally play audio can be a transport. */
+ *  One implementation ships today: a self-hosted browser-bot runner (vexa).
+ *  Anything that can produce utterances and optionally play audio can be a
+ *  transport — see docs/transports.md for what is worth building next. */
 export interface Transport {
   readonly name: string;
 
@@ -56,14 +59,21 @@ export interface Transport {
   /** Post text into the meeting's chat panel, where available. Silence in the
    *  room, a written trail for everyone else. */
   postToChat?(handle: MeetingHandle, text: string): Promise<void>;
+
+  /** Answer whether the service is reachable and the credentials work, without
+   *  joining anything. Used by `check --live`, so an operator finds out at their
+   *  desk instead of thirty seconds before a meeting. */
+  reachable?(): Promise<void>;
 }
 
 export interface JoinOptions {
   /** Name shown in the participant list. */
   displayName: string;
   language?: string;
-  /** How long the agent tolerates being alone before leaving, in ms. Generous
-   *  by default: a room where everyone is muted looks empty to most transports. */
+  /** How long the agent tolerates being alone before leaving, in milliseconds.
+   *  Generous by default — a room where everyone is muted looks empty to most
+   *  transports — and the Vexa adapter converts to whatever unit its API wants.
+   *  Set by a transport's caller in code; there is no config field for it yet. */
   leaveWhenAloneMs?: number;
 }
 
@@ -140,9 +150,14 @@ export interface DeliveryResult {
   error?: string;
 }
 
+/** The meeting as delivered to a sink.
+ *
+ *  `partial: true` means this is a checkpoint written while the meeting is still
+ *  running: the title is the room code, the minutes are absent, and a later
+ *  record with the same handle supersedes it. */
 export interface MeetingRecord {
   handle: MeetingHandle;
-  /** Generated from the content, not the room code. */
+  /** Generated from the content once the meeting ends; the room code until then. */
   title: string;
   startedAt: string;
   endedAt?: string;

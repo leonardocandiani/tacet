@@ -8,7 +8,7 @@
 // does not exit. Awaiting the process hangs forever with a finished file sitting
 // on disk. Wait for the FILE to stop growing, then kill the process.
 
-import { unlink } from 'node:fs/promises';
+import { mkdtemp, rm, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -210,9 +210,16 @@ export async function renderPdf(doc: PdfDocument, destination: string, opts: Ren
     return false;
   }
 
-  const html = join(tmpdir(), `minutes-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`);
+  // The staging file holds the entire transcript, so it gets a directory only
+  // this user can open rather than a predictable name in the shared temp dir.
+  const stage = await mkdtemp(join(tmpdir(), 'tacet-'));
+  const html = join(stage, 'minutes.html');
   try {
     await Bun.write(html, buildHtml(doc));
+    // Readiness is "the file stopped growing", so a leftover from an earlier run
+    // at the same path is instantly ready: the browser gets killed before it
+    // writes and the caller is handed yesterday's minutes as if they were new.
+    await unlink(destination).catch(() => {});
 
     const proc = printToPdf(browser, html, destination);
 
@@ -229,6 +236,6 @@ export async function renderPdf(doc: PdfDocument, destination: string, opts: Ren
     log(`PDF failed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   } finally {
-    await unlink(html).catch(() => {});
+    await rm(stage, { recursive: true, force: true }).catch(() => {});
   }
 }

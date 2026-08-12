@@ -30,7 +30,10 @@ by variable **name**, never by value, so the config is safe to commit.
 ## Operating it
 
 **Always run `check` before `join`.** It compiles the wake pattern, resolves
-every provider, and refuses a wake word that collides with ordinary speech. That
+every provider and its credentials, and refuses a wake word that collides with
+ordinary speech. Add `--live` to make each brain, voice and transport actually
+answer — a few tokens, and the difference between "the file parses" and "this
+works tomorrow morning". That
 last check is the one that matters: a bad wake word turns the agent into a
 participant who interrupts constantly.
 

@@ -55,6 +55,9 @@ function transcriptFor(utterances: Utterance[], limit: number): string {
 
 function notebookBriefing(book: Notebook): string {
   const bits: string[] = [];
+  if (book.notes?.length) {
+    bits.push(`Noted during the meeting:\n${book.notes.map((n) => `- ${n.what}`).join('\n')}`);
+  }
   if (book.decisions.length) {
     bits.push(`Decisions noted during the meeting:\n${book.decisions.map((d) => `- ${d.what}`).join('\n')}`);
   }
@@ -154,7 +157,7 @@ export function sectionOf(markdown: string, heading: string): string {
   let inside = false;
 
   for (const line of markdown.split('\n')) {
-    const m = line.match(/^#{1,3}\s+(.*?)\s*$/);
+    const m = line.match(/^#{1,3}\s*(.*?)\s*$/);
     if (m) {
       const name = (m[1] ?? '').trim().toLowerCase();
       if (inside) break;
@@ -171,22 +174,46 @@ export function bulletsOf(markdown: string, heading: string): string[] {
   return sectionOf(markdown, heading)
     .split('\n')
     .map((l) => l.replace(/^\s*[-*•]\s*/, '').trim())
-    .filter((l) => l.length > 0 && !/^nothing was settled|^none/i.test(l));
+    // Anchored: an item genuinely starting with "none" — "None of the vendors
+    // replied, decide by Friday" — is content, not the model's way of saying the
+    // section is empty, and dropping it lost a real open question.
+    .filter((l) => l.length > 0 && !/^(none|nothing (was )?(settled|decided|recorded)?)[.!]?$/i.test(l));
 }
 
 /** Splits "Review the leads — Sam — Friday" into its parts. Em dash, hyphen and
  *  parenthesised owners all occur in practice. */
+/** Up to three capitalised words, which is what a name looks like when a model
+ *  writes one. "(blocked on legal review)" is not a person, and an action item
+ *  attributed to a phrase nobody can chase is worse than one with no owner. */
+const NAME_SHAPED = /^[A-Z][\p{L}.'-]*(?:\s+[A-Z][\p{L}.'-]*){0,2}$/u;
+
 export function parseAction(line: string): { what: string; owner?: string; due?: string } {
-  const paren = line.match(/^(.*?)\s*\((?:owner:\s*)?([^,)]+?)(?:,\s*(?:due:\s*)?([^)]+))?\)\s*$/i);
-  if (paren) {
-    return { what: (paren[1] ?? '').trim(), owner: paren[2]?.trim(), due: paren[3]?.trim() };
-  }
+  const paren = line.match(/^(.*?)\s*\((owner:\s*)?([^,)]+?)(?:,\s*(?:due:\s*)?([^)]+))?\)\s*$/i);
+  if (paren) return fromParentheses(line, paren);
+
   const parts = line.split(/\s+[—–-]\s+/).map((p) => p.trim()).filter(Boolean);
-  const [what = line.trim(), owner, due] = parts;
-  const unknown = /^(no owner assigned|unassigned|tbd|n\/a)$/i;
-  return {
-    what,
-    owner: owner && !unknown.test(owner) ? owner : undefined,
-    due: due && !unknown.test(due) ? due : undefined,
-  };
+  const [what = line.trim(), second, third] = parts;
+  // "Send the quote — by Friday" has a deadline in the position an owner would
+  // occupy. Attributing the task to "by Friday" is the same failure as the
+  // parenthetical one: a name nobody can chase, printed as if it were a person.
+  if (second && !third && !NAME_SHAPED.test(second)) {
+    return { what, owner: undefined, due: named(second) };
+  }
+  return { what, owner: named(second), due: named(third) };
 }
+
+const UNKNOWN = /^(no owner assigned|unassigned|tbd|n\/a)$/i;
+
+function named(value: string | undefined): string | undefined {
+  return value && !UNKNOWN.test(value) ? value : undefined;
+}
+
+function fromParentheses(line: string, m: RegExpMatchArray): { what: string; owner?: string; due?: string } {
+  const candidate = m[3]?.trim();
+  const labelled = Boolean(m[2]);
+  if (!candidate || (!labelled && !NAME_SHAPED.test(candidate))) {
+    return { what: line.trim(), owner: undefined, due: undefined };
+  }
+  return { what: (m[1] ?? '').trim(), owner: named(candidate), due: named(m[4]?.trim()) };
+}
+

@@ -61,3 +61,18 @@ describe('spoken commands', () => {
     expect(c?.payload).toBe('should stay quiet here');
   });
 });
+
+describe('the status command does not swallow ordinary questions', () => {
+  const opts = { wake: /\bnova\b/i };
+
+  test('a question that merely contains the word "status" is not a command', () => {
+    expect(readCommand('nova, what is the status of the API work?', opts)).toBeNull();
+  });
+
+  test('asking for the status is still a command', () => {
+    expect(readCommand('nova, status?', opts)?.kind).toBe('status');
+    expect(readCommand("nova, what's the status?", opts)?.kind).toBe('status');
+    expect(readCommand('nova, where are we?', opts)?.kind).toBe('status');
+    expect(readCommand('nova, catch me up', opts)?.kind).toBe('status');
+  });
+});

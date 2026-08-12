@@ -6,7 +6,7 @@
 
 import { ConfigError, readKey, type AgentFile, type ProviderRef, type SinkRef } from './config';
 import { anthropicBrain, brainChain, commandBrain, geminiBrain, openaiBrain } from './adapters/brains';
-import { elevenLabsVoice, httpVoice, openaiVoice, silentVoice } from './adapters/voices';
+import { elevenLabsVoice, httpVoice, openaiVoice, silentVoice, voiceChain } from './adapters/voices';
 import { commandSink, fileSink, memorySink, webhookSink } from './adapters/sinks';
 import { vexaTransport } from './adapters/transports/vexa';
 import type { Brain, Sink, Synthesizer, Transport } from './adapters/contracts';
@@ -52,9 +52,12 @@ export function makeVoice(ref: ProviderRef): Synthesizer {
       return elevenLabsVoice({ apiKey: readKey(ref), voice: ref.voice, model: ref.model, timeoutMs: ref.timeoutMs });
     case 'openai':
       return openaiVoice({ apiKey: readKey(ref), voice: ref.voice, model: ref.model, timeoutMs: ref.timeoutMs });
-    case 'http':
-      if (!ref.baseUrl) throw new ConfigError('an http voice needs "baseUrl"');
-      return httpVoice(ref.baseUrl, { apiKey: readKey(ref, false), voice: ref.voice, timeoutMs: ref.timeoutMs });
+    case 'http': {
+      const hint = 'baseUrl: "http://localhost:8080/tts"';
+      if (!ref.baseUrl) throw new ConfigError('an http voice needs "baseUrl"', hint);
+      const baseUrl = absoluteUrl(ref.baseUrl, 'an http voice', hint);
+      return httpVoice(baseUrl, { apiKey: readKey(ref, false), voice: ref.voice, timeoutMs: ref.timeoutMs });
+    }
     case 'silent':
       return silentVoice();
     default:
@@ -67,9 +70,12 @@ export function makeSink(ref: SinkRef): Sink {
     case 'files':
       if (!ref.dir) throw new ConfigError('a files sink needs "dir"', 'dir: "./meetings"');
       return fileSink({ dir: ref.dir });
-    case 'webhook':
-      if (!ref.url) throw new ConfigError('a webhook sink needs "url"');
-      return webhookSink({ url: ref.url, token: envValue(ref.tokenEnv), finalOnly: ref.finalOnly });
+    case 'webhook': {
+      const hint = 'url: "https://host/path"';
+      if (!ref.url) throw new ConfigError('a webhook sink needs "url"', hint);
+      const url = absoluteUrl(ref.url, 'a webhook sink', hint);
+      return webhookSink({ url, token: envValue(ref.tokenEnv), finalOnly: ref.finalOnly });
+    }
     case 'command':
       if (!ref.argv?.length) throw new ConfigError('a command sink needs "argv"');
       return commandSink({ argv: ref.argv, finalOnly: ref.finalOnly });
@@ -85,7 +91,10 @@ export function makeTransport(file: AgentFile): Transport {
   switch (t.use) {
     case 'vexa':
       if (!t.baseUrl) throw new ConfigError('the vexa transport needs "baseUrl"');
-      return vexaTransport({ baseUrl: t.baseUrl, apiKey: envValue(t.keyEnv) ?? '', speech: t.speech });
+      // Every other provider fails loudly on a missing key. The transport used to
+      // send an empty one and get a 401 mid-join, which reads as "the meeting
+      // rejected the bot" rather than "you forgot to export the key".
+      return vexaTransport({ baseUrl: t.baseUrl, apiKey: readKey(t as ProviderRef) as string, speech: t.speech });
     default:
       return unknown('transport', t.use, TRANSPORTS);
   }
@@ -101,6 +110,22 @@ export interface WiredAgent {
 
 /** Builds everything the session needs. Throws ConfigError with a usable hint on
  *  the first thing that is wrong, rather than starting and failing mid-meeting. */
+/** `new URL` throws a bare TypeError, which surfaces as "Failed to parse URL"
+ *  with no clue about which entry caused it. The protocol check matters as much:
+ *  "localhost:9000/hook" parses, as a URL with the protocol "localhost:". */
+function absoluteUrl(raw: string, what: string, hint: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new ConfigError(`${what} needs an absolute url, got "${raw}"`, hint);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ConfigError(`${what} needs an http or https url, got "${raw}"`, hint);
+  }
+  return raw;
+}
+
 export function wire(file: AgentFile, log?: (line: string) => void): WiredAgent {
   const onFail = log ? (name: string, error: string) => log(`provider ${name} failed: ${error}`) : undefined;
 
@@ -108,7 +133,7 @@ export function wire(file: AgentFile, log?: (line: string) => void): WiredAgent 
     transport: makeTransport(file),
     fast: brainChain(file.fast.map(makeBrain), onFail),
     deep: file.deep?.length ? brainChain(file.deep.map(makeBrain), onFail) : undefined,
-    voice: file.voice?.length ? makeVoice(file.voice[0] as ProviderRef) : undefined,
+    voice: file.voice?.length ? voiceChain(file.voice.map(makeVoice), onFail) : undefined,
     sinks: (file.sinks ?? []).map(makeSink),
   };
 }

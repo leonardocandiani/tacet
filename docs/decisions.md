@@ -84,3 +84,33 @@ when it is worth asking.
 **Explicit capture by voice.** "That's a decision: …" bypasses the model entirely
 and records verbatim. It is the difference between a record the team trusts and a
 summary they re-check.
+
+**A turn budget that also covers "Noted."** A confirmation is speech. Exempting it
+was tempting — it is short, it is helpful, it is not really a *turn* — and it
+meant that the listen-only configuration, the one the documentation tells you to
+run in your first real meeting, posted into the customer's meeting chat. There is
+now one path to speech and it is governed in one place.
+
+---
+
+## Decided against, after being built
+
+**Merging a decision into the one it seems to correct.** The notebook used to
+treat two decisions sharing their opening words as the same note, so "we ship on
+Monday" followed by "we ship on Friday" kept only one. That is right roughly half
+the time. The other half it silently deletes a real decision — "hire two engineers
+for the platform team" and "…for the data team" are also eight identical opening
+words. Nothing in the text distinguishes a correction from a second decision, so
+the notebook stopped guessing: a restatement that merely extends what was already
+captured collapses, anything else is kept, in the order it was said. A reader can
+resolve a contradiction they can see. Nobody can resolve one they were never
+shown.
+
+**Making "off the record" durable across a restart.** It was tempting to persist
+the paused ranges and re-apply them when a new session reads the same meeting. It
+would also be a lie: the transport is still in the room, and its transcript — on
+the server, outside this program's authority — holds the words either way. A
+privacy control that covers only the copy nobody was worried about is worse than
+one with a documented edge, because people trust it further than it goes. So the
+scope is stated plainly in SECURITY.md instead: if it truly cannot be recorded,
+remove the bot from the meeting.
