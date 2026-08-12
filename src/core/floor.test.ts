@@ -23,10 +23,20 @@ describe('floor control', () => {
     expect(d).toMatchObject({ reason: 'not-addressed' });
   });
 
-  test('grants the floor on the wake phrase', () => {
+  test('grants the floor on the wake phrase, and marks itself busy', () => {
     const d = requestFloor(said('nova, what did we decide?', 1000), newFloorState(), CONFIG);
     expect(d.grant).toBe(true);
     expect(d).toMatchObject({ reason: 'wake' });
+
+    // thinkingSince is what stops a second question arriving mid-answer from
+    // starting a second answer. Without asserting it here, removing it entirely
+    // left the suite green.
+    if (!d.grant) throw new Error('unreachable');
+    expect(d.state.thinkingSince).toBe(1000);
+    expect(requestFloor(said('nova, and the timeline?', 1100), d.state, CONFIG)).toMatchObject({
+      grant: false,
+      reason: 'already-thinking',
+    });
   });
 
   test('a reply right after its own turn counts as addressed', () => {

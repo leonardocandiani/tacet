@@ -281,6 +281,7 @@ describe('session loop', () => {
     expect(sink.records).toHaveLength(1);
     expect(sink.records[0].partial).toBe(true);
     expect(sink.records[0].utterances).toHaveLength(1);
+    expect(sink.records[0].participants).toEqual(['Alex']);
   });
 
   test('a failing sink does not break the loop', async () => {
