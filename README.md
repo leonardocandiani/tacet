@@ -155,7 +155,12 @@ Between hearing something and saying something:
 
 A question refused for timing is held, not dropped, and delivered when the floor
 reopens — unless the room has moved on, in which case it is discarded rather than
-answered late.
+answered late. Going off the record counts as the room moving on.
+
+One deliberate exception: a confirmation like "Noted." skips the cooldown, because
+a capture that answers four seconds later gets repeated by whoever dictated it. It
+does **not** skip the turn budget. With a budget of zero there is no confirmation
+and no channel through which the agent says anything at all.
 
 ## Architecture
 
