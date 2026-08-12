@@ -1,0 +1,35 @@
+{
+  // Answers questions about your own data, by handing them to an agent that
+  // already has your tools. tacet never learns what those tools are.
+  //
+  // The two-tier split matters: the fast brain carries the conversation, and
+  // only questions that genuinely need data reach the slow one. Without that,
+  // every "are you there?" costs you a full agent invocation.
+  "name": "Nova",
+  "wakeAliases": ["novah", "nowa"],
+  "language": "en",
+
+  "transport": {
+    "use": "vexa",
+    "baseUrl": "http://localhost:18056",
+    "keyEnv": "VEXA_API_KEY"
+  },
+
+  "fast": [
+    { "use": "gemini", "model": "gemini-2.5-flash", "keyEnv": "GEMINI_API_KEY" }
+  ],
+
+  // Any executable. The prompt arrives on stdin, stdout is the answer.
+  // Expect several seconds — the agent speaks an acknowledgement first so the
+  // room knows it was heard.
+  "deep": [
+    { "use": "command", "argv": ["claude", "-p"], "cwd": "/path/to/your/workspace", "timeoutMs": 120000 }
+  ],
+
+  "voice": [{ "use": "elevenlabs", "keyEnv": "ELEVENLABS_API_KEY" }],
+
+  "sinks": [
+    { "use": "files", "dir": "./meetings" },
+    { "use": "webhook", "url": "https://example.com/hooks/minutes", "tokenEnv": "MINUTES_WEBHOOK_TOKEN" }
+  ]
+}

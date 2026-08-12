@@ -63,6 +63,23 @@ You also need a meeting transport. The shipped adapter targets a self-hosted
 [Vexa](https://github.com/Vexa-ai/vexa) deployment, which runs the browser that
 actually joins the call. See [docs/transports.md](docs/transports.md).
 
+### Teaching a coding agent to drive it
+
+There is a skill in [`skills/tacet`](skills/tacet/SKILL.md) that hands an agent
+the operating knowledge: how to pick a wake word, what to check before joining,
+and how to diagnose the two complaints that actually happen.
+
+```
+npx skills add https://github.com/leonardocandiani/tacet
+```
+
+Claude Code can install it as a plugin instead:
+
+```
+/plugin marketplace add leonardocandiani/tacet
+/plugin install tacet
+```
+
 ## Configure
 
 One file describes what you want. Secrets stay in the environment, referenced by

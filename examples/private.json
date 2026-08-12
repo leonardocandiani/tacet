@@ -1,0 +1,30 @@
+{
+  // Nothing leaves the building. Every provider points at something you run:
+  // an OpenAI-compatible server (vLLM, Ollama, LM Studio) and a local voice.
+  //
+  // The transport still runs a browser that joins the call, so the meeting
+  // platform sees a participant — self-hosted is about where the audio and the
+  // text go, not about being invisible.
+  "name": "Nova",
+  "language": "en",
+
+  "transport": {
+    "use": "vexa",
+    "baseUrl": "http://localhost:18056",
+    "keyEnv": "VEXA_API_KEY"
+  },
+
+  "fast": [
+    {
+      "use": "openai",
+      "baseUrl": "http://localhost:11434/v1",
+      "model": "llama3.1:8b",
+      "keyEnv": "LOCAL_LLM_KEY"
+    }
+  ],
+
+  // Any endpoint that takes {text} and returns raw PCM: Piper, Coqui, your own.
+  "voice": [{ "use": "http", "baseUrl": "http://localhost:5002/speak" }],
+
+  "sinks": [{ "use": "files", "dir": "./meetings" }]
+}

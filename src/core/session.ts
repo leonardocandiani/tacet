@@ -313,6 +313,17 @@ export class Session {
     }
 
     if (!command) return false;
+
+    // Capture is writing, and writing is exactly what "off the record" turned
+    // off. Without this, "off the record" followed by "that's a decision: ..."
+    // put the sentence in the notebook, then in the minutes, then in front of an
+    // external model — the precise thing the speaker asked not to happen.
+    if (!this.recording && command.kind !== 'status') {
+      this.log(`refused to capture while off the record (${command.kind})`);
+      await this.say("We're off the record — say you're back on it first.");
+      return true;
+    }
+
     await this.runCommand(command, spoken.speaker, u.offset);
     return true;
   }

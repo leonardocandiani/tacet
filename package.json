@@ -35,7 +35,7 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/",
+    "lint": "eslint src/ examples/",
     "check": "bun run typecheck && bun run lint && bun test"
   },
   "engines": {

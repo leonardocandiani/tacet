@@ -1,0 +1,23 @@
+{
+  // Never speaks. Joins, transcribes, takes structured notes and files the
+  // minutes. This is the configuration to run for your first real meeting.
+  "name": "Nova",
+  "language": "en",
+
+  "transport": {
+    "use": "vexa",
+    "baseUrl": "http://localhost:18056",
+    "keyEnv": "VEXA_API_KEY"
+  },
+
+  // Still needed: the notebook and the minutes are written by this.
+  "fast": [
+    { "use": "gemini", "model": "gemini-2.5-flash", "keyEnv": "GEMINI_API_KEY" }
+  ],
+
+  // No voice block at all. With no synthesizer the agent falls back to the
+  // meeting chat, and with a turn budget of zero it says nothing anywhere.
+  "sinks": [{ "use": "files", "dir": "./meetings" }],
+
+  "floor": { "maxTurns": 0 }
+}

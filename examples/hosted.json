@@ -1,0 +1,26 @@
+{
+  // Speaks, and answers from what was said in the meeting. No access to your
+  // systems: ask it about the conversation, not about your database.
+  "name": "Nova",
+  "wakeAliases": ["novah", "nowa"],
+  "language": "en",
+  "persona": "You are the team's meeting assistant. Brief, concrete, never chatty.",
+
+  "transport": {
+    "use": "vexa",
+    "baseUrl": "http://localhost:18056",
+    "keyEnv": "VEXA_API_KEY"
+  },
+
+  // Tried in order. The second one covers the first being rate-limited, which
+  // during a meeting is the difference between an answer and silence.
+  "fast": [
+    { "use": "gemini", "model": "gemini-2.5-flash", "keyEnv": "GEMINI_API_KEY" },
+    { "use": "openai", "model": "gpt-4o-mini", "keyEnv": "OPENAI_API_KEY" }
+  ],
+
+  "voice": [{ "use": "elevenlabs", "keyEnv": "ELEVENLABS_API_KEY" }],
+  "sinks": [{ "use": "files", "dir": "./meetings" }],
+
+  "floor": { "windowSeconds": 45, "cooldownSeconds": 10, "maxTurns": 20 }
+}

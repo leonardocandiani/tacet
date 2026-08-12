@@ -395,6 +395,30 @@ describe('commands, holding and privacy', () => {
     expect(texts.some((t) => t.includes('acquisition'))).toBe(false);
   });
 
+  test('off the record refuses an explicit capture, rather than filing it quietly', async () => {
+    const transport = new FakeTransport();
+    const clock = fakeClock();
+    const s = new Session(
+      HANDLE,
+      { transport, fast: new ScriptedBrain([]), voice: new FakeVoice(), sinks: [], clock: clock.now },
+      makeConfig(),
+    );
+
+    transport.say(1, 'nova, off the record');
+    await s.tick();
+    clock.advance(2_000);
+    await s.tick();
+
+    transport.say(2, "nova, that's a decision: we settle for forty million");
+    await s.tick();
+    clock.advance(6_000);
+    await s.tick();
+
+    // Nothing captured, and the refusal is spoken so nobody assumes it landed.
+    expect(s.snapshot().notebook.decisions).toHaveLength(0);
+    expect(transport.spoken[1]).toContain('off the record');
+  });
+
   test('and recording resumes on request', async () => {
     const transport = new FakeTransport();
     const clock = fakeClock();

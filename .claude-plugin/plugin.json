@@ -1,0 +1,18 @@
+{
+  "name": "tacet",
+  "version": "0.1.0",
+  "description": "Run and operate tacet, the meeting agent that stays silent until called by name, takes structured notes while the meeting runs, and files the minutes.",
+  "author": {
+    "name": "Leonardo Candiani"
+  },
+  "homepage": "https://github.com/leonardocandiani/tacet",
+  "license": "MIT",
+  "keywords": [
+    "meeting",
+    "transcription",
+    "minutes",
+    "notetaker",
+    "voice-agent",
+    "self-hosted"
+  ]
+}

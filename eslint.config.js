@@ -5,7 +5,7 @@ export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'examples/**/*.ts'],
     rules: {
       // Complexity budgets. These are the gate, not a suggestion: a function
       // past them is a function nobody will safely change later.

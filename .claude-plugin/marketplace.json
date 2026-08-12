@@ -1,0 +1,14 @@
+{
+  "name": "tacet",
+  "owner": {
+    "name": "Leonardo Candiani",
+    "url": "https://github.com/leonardocandiani"
+  },
+  "plugins": [
+    {
+      "name": "tacet",
+      "source": "./",
+      "description": "The meeting agent that stays silent until called by name."
+    }
+  ]
+}
