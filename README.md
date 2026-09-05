@@ -1,18 +1,36 @@
+<!-- Banner -->
 <div align="center">
-
-<img src="assets/tacet-mark.svg" alt="tacet" width="440">
-
-**Silent by default.**
-
-An agent that sits in your meetings, listens to everything, speaks only when called, and files the minutes.
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Runtime](https://img.shields.io/badge/runtime-Bun%20%E2%89%A5%201.2-black.svg)](https://bun.sh)
-[![Self-hosted](https://img.shields.io/badge/self--hosted-yes-0f766e.svg)](#install)
-
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:1a1a2e,100:00d9ff&height=200&section=header&text=tacet&fontSize=54&fontColor=ffffff&animation=fadeIn&fontAlignY=36&desc=Silent%20by%20default&descAlignY=58&descSize=16" alt="tacet" width="100%" />
 </div>
 
----
+<div align="center">
+
+  <br>
+  <img src="assets/tacet-mark.svg" alt="tacet" width="440" />
+  <br><br>
+
+  <p><strong>An agent that sits in your meetings, listens to everything, speaks only when called, and files the minutes.</strong></p>
+
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-00d9ff?style=for-the-badge" alt="License: MIT" /></a>
+    <img src="https://img.shields.io/badge/runtime-Bun%201.2%2B-1a1a2e?style=for-the-badge&logo=bun&logoColor=white" alt="runtime: Bun 1.2+" />
+    <a href="#install"><img src="https://img.shields.io/badge/self-hosted-yes-00d9ff?style=for-the-badge" alt="self-hosted: yes" /></a>
+    <a href="https://github.com/leonardocandiani/tacet/pulls"><img src="https://img.shields.io/badge/PRs-welcome-1a1a2e?style=for-the-badge" alt="PRs: welcome" /></a>
+  </p>
+
+  <p>
+  <a href="#what-it-does">What it does</a> •
+  <a href="#install">Install</a> •
+  <a href="#configure">Configure</a> •
+  <a href="#talking-to-it">Talking to it</a> •
+  <a href="#the-seven-gates">The seven gates</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#what-it-deliberately-does-not-do">What it deliberately does not do</a> •
+  <a href="#license">License</a>
+  </p>
+</div>
+
+<br>
 
 *tacet* (TAY-set) is the instruction on a score that tells an instrument to stay
 silent for the whole movement. It plays nothing until the piece calls for it.
@@ -23,7 +41,7 @@ utterance and a spoken reply, and the language model does not get a vote on any
 of them. It decides *what* to say. Whether it may speak at all is decided in
 [`src/core/floor.ts`](src/core/floor.ts), in code you can read in five minutes.
 
-Meanwhile it writes everything down — decisions, action items and open questions,
+Meanwhile it writes everything down: decisions, action items and open questions,
 extracted while the meeting is still running, so a crash costs you nothing and
 someone joining late can ask where things stand.
 
@@ -33,13 +51,13 @@ someone joining late can ask where things stand.
 - **Stays silent** until someone says its name. Then a short window opens, and
   inside that window you can keep talking to it without repeating the name.
 - **Answers from the conversation** in about a second, and reaches for real data
-  only when the question needs it — announcing that it is looking, so nobody is
+  only when the question needs it, announcing that it is looking, so nobody is
   left wondering whether it heard.
 - **Takes notes as it goes.** "That's a decision: we ship on the twentieth" is
   recorded verbatim, instantly, with no model in the loop.
 - **Goes off the record** when asked: the words are dropped from the transcript,
   from the notes and from every delivery, including the sentence said while the
-  command was still landing. What it cannot do is silence the transport — see
+  command was still landing. What it cannot do is silence the transport: see
   [SECURITY.md](SECURITY.md).
 - **Files the minutes** at the end: Markdown, PDF, and anywhere else you point it.
 
@@ -68,7 +86,7 @@ and "this will work at ten tomorrow".
 
 You also need a meeting transport. The shipped adapter targets a self-hosted
 [Vexa](https://github.com/Vexa-ai/vexa) deployment, which runs the browser that
-actually joins the call — [docs/transports.md](docs/transports.md) has the
+actually joins the call. [docs/transports.md](docs/transports.md) has the
 compose-up-and-get-a-key walkthrough.
 
 PDF minutes need a Chromium-based browser on the machine (Chrome, Chromium, Edge
@@ -98,7 +116,7 @@ Claude Code can install it as a plugin instead:
 ## Configure
 
 One file describes what you want. Secrets stay in the environment, referenced by
-variable name — the config is safe to commit and review.
+variable name: the config is safe to commit and review.
 
 ```jsonc
 {
@@ -133,7 +151,7 @@ your business in the meeting. tacet never needs to know what those tools are.
 | You say | It does |
 |---|---|
 | "Nova, what did we decide about pricing?" | answers from the conversation |
-| "…and what about the timeline?" | answers too — inside the window, no name needed |
+| "…and what about the timeline?" | answers too, inside the window, no name needed |
 | "Nova, that's a decision: budget stays at fifteen thousand" | records it verbatim, instantly |
 | "Nova, action item: Review the leads (Sam, Friday)" | records the task, the owner and the deadline |
 | "Nova, where are we?" | counts what is settled and what is still open |
@@ -145,16 +163,16 @@ your business in the meeting. tacet never needs to know what those tools are.
 
 Between hearing something and saying something:
 
-1. **Silent by default** — it starts mute and stays that way.
-2. **Addressed or nothing** — the wake word, or a reply inside a window it opened.
-3. **The model may decline** — `NO_REPLY` when the line was not really for it.
-4. **Voice override** — "quiet" and "sleep" work immediately, ahead of everything.
-5. **Cooldown** — a minimum gap between turns, so it cannot monologue.
-6. **Turn budget** — a hard ceiling per meeting, with no runtime override.
-7. **Barge-in** — someone talks over it, it stops mid-sentence.
+1. **Silent by default:** it starts mute and stays that way.
+2. **Addressed or nothing:** the wake word, or a reply inside a window it opened.
+3. **The model may decline:** `NO_REPLY` when the line was not really for it.
+4. **Voice override:** "quiet" and "sleep" work immediately, ahead of everything.
+5. **Cooldown:** a minimum gap between turns, so it cannot monologue.
+6. **Turn budget:** a hard ceiling per meeting, with no runtime override.
+7. **Barge-in:** someone talks over it, it stops mid-sentence.
 
 A question refused for timing is held, not dropped, and delivered when the floor
-reopens — unless the room has moved on, in which case it is discarded rather than
+reopens, unless the room has moved on, in which case it is discarded rather than
 answered late. Going off the record counts as the room moving on.
 
 One deliberate exception: a confirmation like "Noted." skips the cooldown, because
@@ -176,7 +194,7 @@ ships with at least two implementations:
 
 | Seam | Ships with |
 |---|---|
-| Transport | Vexa — the only one today, see [docs/transports.md](docs/transports.md) |
+| Transport | Vexa, the only one today, see [docs/transports.md](docs/transports.md) |
 | Brain | OpenAI (and any compatible endpoint), Anthropic, Gemini, **any local command** |
 | Voice | ElevenLabs, OpenAI, any HTTP endpoint, silent |
 | Sink | files, webhook, command, memory |
@@ -211,12 +229,12 @@ credentials.
 
 ## Documentation
 
-- [Wake words](docs/wake-word.md) — why the name matters more than it sounds
-- [Audio windows](docs/audio-windows.md) — the setting that governs transcript quality
-- [Adapters](docs/adapters.md) — writing your own
-- [Transports](docs/transports.md) — getting a bot into the room
-- [Decisions](docs/decisions.md) — what was rejected and why
-- [Security](SECURITY.md) — threat model, and the limits of "off the record"
+- [Wake words](docs/wake-word.md): why the name matters more than it sounds
+- [Audio windows](docs/audio-windows.md): the setting that governs transcript quality
+- [Adapters](docs/adapters.md): writing your own
+- [Transports](docs/transports.md): getting a bot into the room
+- [Decisions](docs/decisions.md): what was rejected and why
+- [Security](SECURITY.md): threat model, and the limits of "off the record"
 
 ## Development
 
@@ -231,3 +249,29 @@ tested as such. If you change how the agent decides to speak, the tests in
 ## License
 
 MIT © Leonardo Candiani
+
+<br>
+
+---
+
+<div align="center">
+  <p><strong>Built by <a href="https://github.com/leonardocandiani">Leonardo Candiani</a></strong> · More projects at <a href="https://github.com/leonardocandiani?tab=repositories">github.com/leonardocandiani</a></p>
+  <a href="https://leonardocandiani.com.br">
+    <img src="https://img.shields.io/badge/-Website-0d1117?style=for-the-badge&logo=safari&logoColor=00d9ff" alt="Website" />
+  </a>
+  <a href="https://github.com/leonardocandiani">
+    <img src="https://img.shields.io/badge/-GitHub-0d1117?style=for-the-badge&logo=github&logoColor=00d9ff" alt="GitHub" />
+  </a>
+  <a href="https://instagram.com/leonardocandiani">
+    <img src="https://img.shields.io/badge/-Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram" />
+  </a>
+  <a href="https://youtube.com/@oleonardocandiani">
+    <img src="https://img.shields.io/badge/-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube" />
+  </a>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00d9ff,50:1a1a2e,100:0d1117&height=120&section=footer&text=Thanks%20for%20stopping%20by&fontSize=18&fontColor=ffffff&fontAlignY=72" alt="Thanks for stopping by" width="100%" />
+</div>
