@@ -1,0 +1,43 @@
+{
+  "name": "tacet",
+  "desc": "Silent by default",
+  "typing": [
+    "Silent by default",
+    "Sits in your meetings, speaks only when called",
+    "Seven gates in code decide if it may talk; the LLM does not vote",
+    "Files the minutes while the meeting is still running"
+  ],
+  "hero": [
+    {
+      "src": "assets/tacet-mark.svg",
+      "alt": "tacet",
+      "width": 440
+    }
+  ],
+  "tagline": "An agent that sits in your meetings, listens to everything, speaks only when called, and files the minutes.",
+  "badges": [
+    "license",
+    {
+      "label": "runtime",
+      "msg": "Bun 1.2+",
+      "logo": "bun"
+    },
+    {
+      "label": "self-hosted",
+      "msg": "yes",
+      "color": "ACCENT",
+      "href": "#install"
+    },
+    "prs"
+  ],
+  "pitch": "**tacet** is the meeting bot that knows when to shut up: mute by construction, it answers only inside a short window after its name, and writes decisions, action items and open questions down as they happen.",
+  "what": {
+    "product": "self-hosted meeting agent, silent unless called",
+    "joins": "as a participant, through a transport you control",
+    "speaks": "only after its wake word, inside a short follow-up window",
+    "gates": "seven independent gates in src/core/floor.ts; the model decides what, not whether",
+    "notes": "decisions, action items, open questions extracted live, crash-safe",
+    "runtime": "Bun 1.2+, TypeScript, self-hosted",
+    "license": "MIT"
+  }
+}

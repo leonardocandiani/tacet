@@ -1,6 +1,12 @@
+<!-- readme-padrao:header -->
 <!-- Banner -->
 <div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:1a1a2e,100:00d9ff&height=200&section=header&text=tacet&fontSize=54&fontColor=ffffff&animation=fadeIn&fontAlignY=36&desc=Silent%20by%20default&descAlignY=58&descSize=16" alt="tacet" width="100%" />
+</div>
+
+<!-- Typing -->
+<div align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=21&duration=2800&pause=900&color=00d9ff&center=true&vCenter=true&width=840&lines=Silent+by+default;Sits+in+your+meetings%2C+speaks+only+when+called;Seven+gates+in+code+decide+if+it+may+talk%3B+the+LLM+does+not+vote;Files+the+minutes+while+the+meeting+is+still+running" alt="Silent by default" />
 </div>
 
 <div align="center">
@@ -14,23 +20,39 @@
   <p>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-00d9ff?style=for-the-badge" alt="License: MIT" /></a>
     <img src="https://img.shields.io/badge/runtime-Bun%201.2%2B-1a1a2e?style=for-the-badge&logo=bun&logoColor=white" alt="runtime: Bun 1.2+" />
-    <a href="#install"><img src="https://img.shields.io/badge/self-hosted-yes-00d9ff?style=for-the-badge" alt="self-hosted: yes" /></a>
+    <a href="#install"><img src="https://img.shields.io/badge/self--hosted-yes-00d9ff?style=for-the-badge" alt="self-hosted: yes" /></a>
     <a href="https://github.com/leonardocandiani/tacet/pulls"><img src="https://img.shields.io/badge/PRs-welcome-1a1a2e?style=for-the-badge" alt="PRs: welcome" /></a>
   </p>
 
   <p>
-  <a href="#what-it-does">What it does</a> •
-  <a href="#install">Install</a> •
-  <a href="#configure">Configure</a> •
-  <a href="#talking-to-it">Talking to it</a> •
-  <a href="#the-seven-gates">The seven gates</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#what-it-deliberately-does-not-do">What it deliberately does not do</a> •
-  <a href="#license">License</a>
+    <a href="#what-it-does">What it does</a> •
+    <a href="#install">Install</a> •
+    <a href="#configure">Configure</a> •
+    <a href="#talking-to-it">Talking to it</a> •
+    <a href="#the-seven-gates">The seven gates</a> •
+    <a href="#architecture">Architecture</a> •
+    <a href="#what-it-deliberately-does-not-do">What it deliberately does not do</a> •
+    <a href="#license">License</a>
   </p>
 </div>
 
 <br>
+
+> **tacet** is the meeting bot that knows when to shut up: mute by construction, it answers only inside a short window after its name, and writes decisions, action items and open questions down as they happen.
+
+## What it is
+
+```yaml
+product: self-hosted meeting agent, silent unless called
+joins:   as a participant, through a transport you control
+speaks:  only after its wake word, inside a short follow-up window
+gates:   seven independent gates in src/core/floor.ts; the model decides what, not whether
+notes:   decisions, action items, open questions extracted live, crash-safe
+runtime: Bun 1.2+, TypeScript, self-hosted
+license: MIT
+```
+
+<!-- /readme-padrao:header -->
 
 *tacet* (TAY-set) is the instruction on a score that tells an instrument to stay
 silent for the whole movement. It plays nothing until the piece calls for it.
@@ -250,12 +272,14 @@ tested as such. If you change how the agent decides to speak, the tests in
 
 MIT © Leonardo Candiani
 
+<!-- readme-padrao:footer -->
 <br>
 
 ---
 
 <div align="center">
   <p><strong>Built by <a href="https://github.com/leonardocandiani">Leonardo Candiani</a></strong> · More projects at <a href="https://github.com/leonardocandiani?tab=repositories">github.com/leonardocandiani</a></p>
+  <p>Leonardo Candiani builds AI agents that talk, decide and close deals. Cofounder of SixQuasar, operating Proteauto, SegSmart and IACall end to end.</p>
   <a href="https://leonardocandiani.com.br">
     <img src="https://img.shields.io/badge/-Website-0d1117?style=for-the-badge&logo=safari&logoColor=00d9ff" alt="Website" />
   </a>
@@ -275,3 +299,4 @@ MIT © Leonardo Candiani
 <div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00d9ff,50:1a1a2e,100:0d1117&height=120&section=footer&text=Thanks%20for%20stopping%20by&fontSize=18&fontColor=ffffff&fontAlignY=72" alt="Thanks for stopping by" width="100%" />
 </div>
+<!-- /readme-padrao:footer -->
